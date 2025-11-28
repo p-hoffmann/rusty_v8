@@ -3,7 +3,10 @@ import("//build/config/host_byteorder.gni")
 
 static_library("rusty_v8") {
   complete_static_lib = true
-  sources = [ "src/binding.cc" ]
+  sources = [
+    "src/binding.cc",
+    "src/temporal_shim.c",  # Provides stub implementations for V8 temporal support
+  ]
   deps = [
     "//build/config:shared_library_deps",
     "//v8:v8",

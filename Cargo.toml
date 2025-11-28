@@ -109,6 +109,9 @@ paste = "1.0"
 temporal_capi = { package = "ry_temporal_capi", version = "=0.0.11-ry.1", features = [
   "compiled_data",
 ] }
+# Pin timezone_provider to v0.0.14 to fix temporal_rs macro invocation error
+# (v0.0.16 has breaking API changes in iana_normalizer_singleton!() macro)
+timezone_provider = "=0.0.14"
 
 [build-dependencies]
 miniz_oxide = "0.8.8"

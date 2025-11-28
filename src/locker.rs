@@ -1,7 +1,8 @@
 use std::ops::{Deref, DerefMut};
 
 use crate::isolate::Isolate;
-use crate::scope::data::ScopeData;
+// ScopeData API removed in v140.2.0 - pin-based scopes handle this internally
+// use crate::scope::ScopeData;
 
 /// A handle to a shared isolate, allowing access to the isolate in a thread safe way.
 ///
@@ -21,7 +22,8 @@ impl<'a> Locker<'a> {
       _lock: raw::Locker::new(isolate),
       locked: isolate,
     };
-    ScopeData::new_root(s.locked);
+    // ScopeData API removed in v140.2.0 - pin-based scopes handle this internally
+    // ScopeData::new_root(s.locked);
     unsafe { s.locked.enter() };
     s
   }
@@ -46,7 +48,8 @@ impl<'a> Drop for Locker<'a> {
   fn drop(&mut self) {
     // A new locker automatically enters the isolate, so be sure to exit the isolate when the locker is exited.
     unsafe { self.exit() };
-    ScopeData::drop_root(self);
+    // ScopeData API removed in v140.2.0 - pin-based scopes handle this internally
+    // ScopeData::drop_root(self);
   }
 }
 
@@ -81,10 +84,12 @@ mod raw {
   impl Locker {
     pub fn new(isolate: &Isolate) -> Self {
       unsafe {
-        let mut s = Self(MaybeUninit::uninit().assume_init());
-        v8__Locker__CONSTRUCT(&mut s, isolate);
+        // FIX for V8 140.2.0: Use MaybeUninit properly to avoid undefined behavior.
+        // Create an uninitialized Locker, let C++ constructor fill it in.
+        let mut locker = std::mem::MaybeUninit::<Self>::uninit();
+        v8__Locker__CONSTRUCT(locker.as_mut_ptr(), isolate);
         // v8-locker.h disallows copying and assigning, but it does not disallow moving so this is hopefully safe.
-        s
+        locker.assume_init()
       }
     }
 
@@ -99,7 +104,7 @@ mod raw {
     }
   }
 
-  extern "C" {
+  unsafe extern "C" {
     fn v8__Locker__CONSTRUCT(locker: *mut Locker, isolate: *const Isolate);
     fn v8__Locker__DESTRUCT(locker: *mut Locker);
     fn v8__Locker__IsLocked(isolate: *const Isolate) -> bool;

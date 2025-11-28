@@ -101,6 +101,9 @@ default_args = {
 
   enable_rust = true
   enable_rust_cxx = true
+
+  # Keep temporal enabled - we provide stub implementations via temporal_shim.c
+  # This allows V8 to compile with temporal support without needing full temporal_rs
   v8_enable_temporal_support = true
 
   # prevent hashdos

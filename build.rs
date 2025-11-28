@@ -22,6 +22,7 @@ fn main() {
   println!("cargo:rerun-if-changed=.gn");
   println!("cargo:rerun-if-changed=BUILD.gn");
   println!("cargo:rerun-if-changed=src/binding.cc");
+  println!("cargo:rerun-if-changed=src/temporal_shim.c");
 
   // These are all the environment variables that we check. This is
   // probably more than what is needed, but missing an important
@@ -518,7 +519,7 @@ fn download_file(url: &str, filename: &Path) {
 
   // Checksum (i.e: url) to avoid re-downloads
   match fs::read_to_string(static_checksum_path(filename)) {
-    Ok(c) if c == static_lib_url() => return,
+    Ok(c) if c == url => return,
     _ => {}
   };
 
