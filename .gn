@@ -24,6 +24,8 @@ default_args = {
   use_sysroot = false
   simple_template_names = false
   mac_sdk_min = "14"
+  extra_cflags = ["-ftls-model=global-dynamic"]
+  extra_cflags_cc = ["-ftls-model=global-dynamic"]
 
   # Minimize size of debuginfo in distributed static library.
   line_tables_only = true
