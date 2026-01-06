@@ -330,6 +330,8 @@ fn build_v8(is_asan: bool) {
     gn_args.push(r#"target_cpu="x86""#.to_string());
   }
 
+  patch_v8_build_for_tls();
+
   let gn_out = run_gn_gen(&gn_args);
   assert!(gn_out.exists());
   assert!(gn_out.join("args.gn").exists());
@@ -949,6 +951,26 @@ fn ninja(gn_out_dir: &Path, maybe_env: Option<NinjaEnv>) -> Command {
     }
   }
   cmd
+}
+
+fn patch_v8_build_for_tls() {
+  let v8_build_gn = Path::new("v8/BUILD.gn");
+  if !v8_build_gn.exists() {
+    return;
+  }
+
+  let content = fs::read_to_string(v8_build_gn).unwrap();
+  if content.contains("-ftls-model=global-dynamic") {
+    return;
+  }
+
+  let patched = content.replace(
+    "config(\"toolchain\") {",
+    "config(\"toolchain\") {\n  cflags = [ \"-ftls-model=global-dynamic\" ]\n  cflags_cc = [ \"-ftls-model=global-dynamic\" ]"
+  );
+
+  fs::write(v8_build_gn, patched).unwrap();
+  println!("cargo:warning=Patched V8 BUILD.gn with global-dynamic TLS flags");
 }
 
 fn run_gn_gen(gn_args: &[String]) -> PathBuf {
