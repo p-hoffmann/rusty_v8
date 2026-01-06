@@ -979,6 +979,8 @@ fn run_gn_gen(gn_args: &[String]) -> PathBuf {
       .stdout(Stdio::inherit())
       .stderr(Stdio::inherit())
       .envs(env::vars())
+      .env("CFLAGS", "-ftls-model=global-dynamic")
+      .env("CXXFLAGS", "-ftls-model=global-dynamic")
       .status()
       .expect("Could not run `gn`")
       .success()
@@ -998,6 +1000,8 @@ pub fn build(target: &str, maybe_env: Option<NinjaEnv>) {
   assert!(
     ninja(&gn_out_dir, maybe_env)
       .arg(target)
+      .env("CFLAGS", "-ftls-model=global-dynamic")
+      .env("CXXFLAGS", "-ftls-model=global-dynamic")
       .status()
       .unwrap()
       .success()
