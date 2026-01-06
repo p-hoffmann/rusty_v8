@@ -961,6 +961,9 @@ fn run_gn_gen(gn_args: &[String]) -> PathBuf {
     args.push_str(&extra_args);
   }
 
+  args.push_str(" target_cflags_cc=[\"-ftls-model=global-dynamic\"]");
+  args.push_str(" target_cflags=[\"-ftls-model=global-dynamic\"]");
+
   let path = env::current_dir().unwrap();
   println!("The current directory is {}", path.display());
   println!(
