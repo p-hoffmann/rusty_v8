@@ -108,6 +108,17 @@ unsafe extern "C" fn rusty_v8_RustObj_trace(
   visitor: *mut Visitor,
 ) {
   unsafe {
+    // Safety check: verify the fat pointer components are valid
+    let data = (*obj).data;
+    if data[0] == 0 || data[1] == 0 {
+      // Data pointer or vtable pointer is null - object is corrupted/freed
+      eprintln!(
+        "[CPPGC ERROR] rusty_v8_RustObj_trace: corrupted object at {:p}, data_ptr={:#x}, vtable_ptr={:#x}",
+        obj, data[0], data[1]
+      );
+      // Don't call trace on corrupted object - this would crash with RIP=0
+      return;
+    }
     let r = get_rust_obj(obj);
     r.trace(&mut *visitor);
   }
@@ -117,13 +128,31 @@ unsafe extern "C" fn rusty_v8_RustObj_trace(
 unsafe extern "C" fn rusty_v8_RustObj_get_name(
   obj: *const RustObj,
 ) -> *const c_char {
-  let r = unsafe { get_rust_obj(obj) };
-  r.get_name().as_ptr()
+  unsafe {
+    let data = (*obj).data;
+    if data[0] == 0 || data[1] == 0 {
+      eprintln!(
+        "[CPPGC ERROR] rusty_v8_RustObj_get_name: corrupted object at {:p}",
+        obj
+      );
+      return b"<corrupted>\0".as_ptr() as *const c_char;
+    }
+    let r = get_rust_obj(obj);
+    r.get_name().as_ptr()
+  }
 }
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn rusty_v8_RustObj_drop(obj: *mut RustObj) {
   unsafe {
+    let data = (*obj).data;
+    if data[0] == 0 || data[1] == 0 {
+      eprintln!(
+        "[CPPGC ERROR] rusty_v8_RustObj_drop: corrupted object at {:p}",
+        obj
+      );
+      return;
+    }
     let r = get_rust_obj_mut(obj);
     std::ptr::drop_in_place(r);
   }
