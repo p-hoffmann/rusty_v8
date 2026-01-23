@@ -27,6 +27,11 @@ default_args = {
   extra_cflags = ["-ftls-model=global-dynamic"]
   extra_cflags_cc = ["-ftls-model=global-dynamic"]
 
+  # Build V8 as monolithic library compatible with being linked into shared libraries
+  # This ensures TLS variables like g_current_isolate_ use global-dynamic model
+  v8_monolithic = true
+  v8_monolithic_for_shared_library = true
+
   # Minimize size of debuginfo in distributed static library.
   line_tables_only = true
   no_inline_line_tables = true
