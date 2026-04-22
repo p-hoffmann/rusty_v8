@@ -86,12 +86,31 @@ unsafe extern "C" {
   ) -> *mut RustObj;
 }
 
+/// Read the trait-object fat pointer as `[data_ptr, vtable_ptr]` so we can
+/// spot null components. A corrupted `RustObj` shows up as one or both halves
+/// being zero, which would otherwise cause a RIP=0 crash inside the v-table call.
+#[inline]
+unsafe fn rust_obj_trait_halves(obj: *const RustObj) -> [usize; 2] {
+  unsafe {
+    let concrete = &*(obj as *const RustObjConcrete<()>);
+    std::mem::transmute(concrete.dynamic)
+  }
+}
+
 #[unsafe(no_mangle)]
 unsafe extern "C" fn rusty_v8_RustObj_trace(
   obj: *const RustObj,
   visitor: *mut Visitor,
 ) {
   unsafe {
+    let data = rust_obj_trait_halves(obj);
+    if data[0] == 0 || data[1] == 0 {
+      eprintln!(
+        "[CPPGC ERROR] rusty_v8_RustObj_trace: corrupted object at {:p}, data_ptr={:#x}, vtable_ptr={:#x}",
+        obj, data[0], data[1]
+      );
+      return;
+    }
     let r = get_rust_obj(obj);
     r.trace(&mut *visitor);
   }
@@ -101,13 +120,31 @@ unsafe extern "C" fn rusty_v8_RustObj_trace(
 unsafe extern "C" fn rusty_v8_RustObj_get_name(
   obj: *const RustObj,
 ) -> *const c_char {
-  let r = unsafe { get_rust_obj(obj) };
-  r.get_name().as_ptr()
+  unsafe {
+    let data = rust_obj_trait_halves(obj);
+    if data[0] == 0 || data[1] == 0 {
+      eprintln!(
+        "[CPPGC ERROR] rusty_v8_RustObj_get_name: corrupted object at {:p}",
+        obj
+      );
+      return b"<corrupted>\0".as_ptr() as *const c_char;
+    }
+    let r = get_rust_obj(obj);
+    r.get_name().as_ptr()
+  }
 }
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn rusty_v8_RustObj_drop(obj: *mut RustObj) {
   unsafe {
+    let data = rust_obj_trait_halves(obj);
+    if data[0] == 0 || data[1] == 0 {
+      eprintln!(
+        "[CPPGC ERROR] rusty_v8_RustObj_drop: corrupted object at {:p}",
+        obj
+      );
+      return;
+    }
     let r = get_rust_obj_mut(obj);
     std::ptr::drop_in_place(r);
   }

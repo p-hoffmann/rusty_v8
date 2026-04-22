@@ -453,6 +453,8 @@ fn build_v8(is_asan: bool) {
     gn_args.push(r#"target_cpu="x86""#.to_string());
   }
 
+  patch_v8_build_for_tls();
+
   let gn_out = run_gn_gen(&gn_args);
   assert!(gn_out.exists());
   assert!(gn_out.join("args.gn").exists());
@@ -648,7 +650,7 @@ fn download_file(url: &str, filename: &Path) {
 
   // Checksum (i.e: url) to avoid re-downloads
   match fs::read_to_string(static_checksum_path(filename)) {
-    Ok(c) if c == static_lib_url() => return,
+    Ok(c) if c == url => return,
     _ => {}
   };
 
@@ -1108,6 +1110,26 @@ fn ninja(gn_out_dir: &Path, maybe_env: Option<NinjaEnv>) -> Command {
   cmd
 }
 
+fn patch_v8_build_for_tls() {
+  let v8_build_gn = Path::new("v8/BUILD.gn");
+  if !v8_build_gn.exists() {
+    return;
+  }
+
+  let content = fs::read_to_string(v8_build_gn).unwrap();
+  if content.contains("-ftls-model=global-dynamic") {
+    return;
+  }
+
+  let patched = content.replace(
+    "config(\"toolchain\") {",
+    "config(\"toolchain\") {\n  cflags = [ \"-ftls-model=global-dynamic\" ]\n  cflags_cc = [ \"-ftls-model=global-dynamic\" ]"
+  );
+
+  fs::write(v8_build_gn, patched).unwrap();
+  println!("cargo:warning=Patched V8 BUILD.gn with global-dynamic TLS flags");
+}
+
 fn run_gn_gen(gn_args: &[String]) -> PathBuf {
   let dirs = get_dirs();
   let gn_out_dir = dirs.out.join("gn_out");
@@ -1117,6 +1139,9 @@ fn run_gn_gen(gn_args: &[String]) -> PathBuf {
     args.push(' ');
     args.push_str(&extra_args);
   }
+
+  args.push_str(" target_cflags_cc=[\"-ftls-model=global-dynamic\"]");
+  args.push_str(" target_cflags=[\"-ftls-model=global-dynamic\"]");
 
   let path = env::current_dir().unwrap();
   println!("The current directory is {}", path.display());
@@ -1136,6 +1161,8 @@ fn run_gn_gen(gn_args: &[String]) -> PathBuf {
       .stdout(Stdio::inherit())
       .stderr(Stdio::inherit())
       .envs(env::vars())
+      .env("CFLAGS", "-ftls-model=global-dynamic")
+      .env("CXXFLAGS", "-ftls-model=global-dynamic")
       .status()
       .expect("Could not run `gn`")
       .success()
@@ -1155,6 +1182,8 @@ pub fn build(target: &str, maybe_env: Option<NinjaEnv>) {
   assert!(
     ninja(&gn_out_dir, maybe_env)
       .arg(target)
+      .env("CFLAGS", "-ftls-model=global-dynamic")
+      .env("CXXFLAGS", "-ftls-model=global-dynamic")
       .status()
       .unwrap()
       .success()
