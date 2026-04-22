@@ -67,6 +67,7 @@ config("rusty_v8_config") {
     cflags += [
       "-fcolor-diagnostics",
       "-fansi-escape-codes",
+      "-ftls-model=global-dynamic",
     ]
   }
 }

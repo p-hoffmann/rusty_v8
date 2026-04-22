@@ -23,6 +23,14 @@ default_args = {
   use_dummy_lastchange = true
   use_sysroot = false
   simple_template_names = false
+  mac_sdk_min = "14"
+  extra_cflags = ["-ftls-model=global-dynamic"]
+  extra_cflags_cc = ["-ftls-model=global-dynamic"]
+
+  # Build V8 as monolithic library compatible with being linked into shared libraries
+  # This ensures TLS variables like g_current_isolate_ use global-dynamic model
+  v8_monolithic = true
+  v8_monolithic_for_shared_library = true
 
   # Minimize size of debuginfo in distributed static library.
   line_tables_only = true
@@ -86,7 +94,6 @@ default_args = {
 
   enable_rust = true
   enable_rust_cxx = true
-  v8_enable_temporal_support = true
 
   # prevent hashdos
   v8_use_default_hasher_secret = false
