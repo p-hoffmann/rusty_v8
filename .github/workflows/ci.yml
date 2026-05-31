@@ -24,6 +24,15 @@ jobs:
             target: x86_64-unknown-linux-gnu
             variant: release
             cargo: cargo
+            sccache_platform: x86_64-unknown-linux-musl
+            python_arch: x64
+          # Linux aarch64 - release, simdutf feature enabled (required by trex / deno v147.x)
+          - os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            variant: release
+            cargo: cargo
+            sccache_platform: aarch64-unknown-linux-musl
+            python_arch: arm64
 
     env:
       V8_FROM_SOURCE: true
@@ -57,7 +66,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.11.x
-          architecture: x64
+          architecture: ${{ matrix.config.python_arch }}
 
       - name: Write git_submodule_status.txt
         run: git submodule status --recursive > git_submodule_status.txt
@@ -81,7 +90,7 @@ jobs:
           SCCACHE_IDLE_TIMEOUT: 0
         run: |
           $version = "v0.8.2"
-          $platform = "x86_64-unknown-linux-musl"
+          $platform = "${{ matrix.config.sccache_platform }}"
           $basename = "sccache-$version-$platform"
           $url = "https://github.com/mozilla/sccache/releases/download/$version/$basename.tar.gz"
           cd ~
@@ -106,7 +115,7 @@ jobs:
       - name: Test
         env:
           SCCACHE_IDLE_TIMEOUT: 0
-        run: cargo nextest run -v --cargo-verbose --all-targets --locked --target x86_64-unknown-linux-gnu --release ${{ env.CARGO_FEATURE_FLAGS }}
+        run: cargo nextest run -v --cargo-verbose --all-targets --locked --target ${{ matrix.config.target }} --release ${{ env.CARGO_FEATURE_FLAGS }}
 
       - name: Prepare binary publish
         run: |
