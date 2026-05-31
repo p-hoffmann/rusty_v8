@@ -212,6 +212,27 @@ fn build_binding() {
         clang_args.push(format!("-isystem{}/include", resource_dir.trim()));
       }
     }
+
+    // When cross-compiling, bindgen auto-passes `-target=$TARGET` to clang, so
+    // clang resolves the target's libc multiarch headers (e.g. bits/wordsize.h)
+    // instead of the host's. Point it at the target sysroot that build_v8 already
+    // installed so those headers are found.
+    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+    if env::var("TARGET").unwrap() != env::var("HOST").unwrap() {
+      let sysroot_arch = match target_arch.as_str() {
+        "aarch64" => Some("arm64"),
+        "arm" => Some("arm"),
+        _ => None,
+      };
+      if let Some(arch) = sysroot_arch {
+        let sysroot = env::current_dir()
+          .unwrap()
+          .join(format!("build/linux/debian_sid_{arch}-sysroot"));
+        if sysroot.is_dir() {
+          clang_args.push(format!("--sysroot={}", sysroot.display()));
+        }
+      }
+    }
   }
 
   let bindings = bindgen::Builder::default()
