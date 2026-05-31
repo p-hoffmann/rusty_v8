@@ -216,7 +216,9 @@ fn build_binding() {
     // When cross-compiling, bindgen auto-passes `-target=$TARGET` to clang, so
     // clang resolves the target's libc multiarch headers (e.g. bits/wordsize.h)
     // instead of the host's. Point it at the target sysroot that build_v8 already
-    // installed so those headers are found.
+    // installed so those headers are found. The Debian release in the sysroot dir
+    // name (e.g. `debian_bullseye_arm64-sysroot`) is set by Chromium's
+    // install-sysroot.py and changes over time, so match it by the arch suffix.
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     if env::var("TARGET").unwrap() != env::var("HOST").unwrap() {
       let sysroot_arch = match target_arch.as_str() {
@@ -225,11 +227,29 @@ fn build_binding() {
         _ => None,
       };
       if let Some(arch) = sysroot_arch {
-        let sysroot = env::current_dir()
-          .unwrap()
-          .join(format!("build/linux/debian_sid_{arch}-sysroot"));
-        if sysroot.is_dir() {
-          clang_args.push(format!("--sysroot={}", sysroot.display()));
+        let suffix = format!("_{arch}-sysroot");
+        let linux_dir = env::current_dir().unwrap().join("build/linux");
+        let sysroot = fs::read_dir(&linux_dir).ok().and_then(|entries| {
+          entries.filter_map(|e| e.ok().map(|e| e.path())).find(|p| {
+            p.is_dir()
+              && p
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| n.starts_with("debian_") && n.ends_with(&suffix))
+                .unwrap_or(false)
+          })
+        });
+        match sysroot {
+          Some(sysroot) => {
+            clang_args.push(format!("--sysroot={}", sysroot.display()));
+          }
+          None => {
+            println!(
+              "cargo:warning=cross-compiling to {target_arch} but no \
+               build/linux/debian_*{suffix} sysroot was found; bindgen may \
+               fail to locate target libc headers"
+            );
+          }
         }
       }
     }
