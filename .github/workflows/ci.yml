@@ -26,13 +26,19 @@ jobs:
             cargo: cargo
             sccache_platform: x86_64-unknown-linux-musl
             python_arch: x64
-          # Linux aarch64 - release, simdutf feature enabled (required by trex / deno v147.x)
-          - os: ubuntu-22.04-arm
+            run_tests: true
+          # Linux aarch64 - release, simdutf feature enabled (required by trex / deno v147.x).
+          # Cross-compiled from the x86_64 host: build.rs installs the arm64 sysroot and V8's
+          # prebuilt rust/clang/gn/ninja host toolchains are x86_64-only (no linux-arm64 host
+          # build exists), so a native arm runner can't run them. Tests are skipped because the
+          # x86_64 host can't execute arm64 binaries.
+          - os: ubuntu-22.04
             target: aarch64-unknown-linux-gnu
             variant: release
             cargo: cargo
-            sccache_platform: aarch64-unknown-linux-musl
-            python_arch: arm64
+            sccache_platform: x86_64-unknown-linux-musl
+            python_arch: x64
+            run_tests: false
 
     env:
       V8_FROM_SOURCE: true
@@ -113,6 +119,7 @@ jobs:
         run: ${{ matrix.config.cargo }} build -v --locked --target ${{ matrix.config.target }} ${{ env.CARGO_VARIANT_FLAG }} ${{ env.CARGO_FEATURE_FLAGS }}
 
       - name: Test
+        if: ${{ matrix.config.run_tests }}
         env:
           SCCACHE_IDLE_TIMEOUT: 0
         run: cargo nextest run -v --cargo-verbose --all-targets --locked --target ${{ matrix.config.target }} --release ${{ env.CARGO_FEATURE_FLAGS }}
