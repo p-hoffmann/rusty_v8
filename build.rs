@@ -222,6 +222,49 @@ fn build_binding() {
     {
       clang_args.push(format!("--sysroot={sysroot}"));
     }
+
+    // When cross-compiling to a glibc (gnu) target, bindgen auto-passes
+    // `-target=$TARGET` to clang, so clang resolves the target's libc
+    // multiarch headers (e.g. bits/wordsize.h) instead of the host's. Point
+    // it at the sysroot that `maybe_install_sysroot()` already downloaded for
+    // the main V8 GN build (see the `target_arch == "aarch64"` branch above)
+    // so those headers are found here too. The Debian release in the
+    // sysroot dir name (e.g. `debian_bullseye_arm64-sysroot`) is set by
+    // Chromium's install-sysroot.py and changes over time, so match it by
+    // the arch suffix rather than hardcoding the release name.
+    if target_env == "gnu" && env::var("TARGET").unwrap() != env::var("HOST").unwrap() {
+      let sysroot_arch = match env::var("CARGO_CFG_TARGET_ARCH").unwrap().as_str() {
+        "aarch64" => Some("arm64"),
+        "arm" => Some("arm"),
+        _ => None,
+      };
+      if let Some(arch) = sysroot_arch {
+        let suffix = format!("_{arch}-sysroot");
+        let linux_dir = env::current_dir().unwrap().join("build/linux");
+        let sysroot = fs::read_dir(&linux_dir).ok().and_then(|entries| {
+          entries.filter_map(|e| e.ok().map(|e| e.path())).find(|p| {
+            p.is_dir()
+              && p
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| n.starts_with("debian_") && n.ends_with(&suffix))
+                .unwrap_or(false)
+          })
+        });
+        match sysroot {
+          Some(sysroot) => {
+            clang_args.push(format!("--sysroot={}", sysroot.display()));
+          }
+          None => {
+            println!(
+              "cargo:warning=cross-compiling to a gnu target but no \
+               build/linux/debian_*{suffix} sysroot was found; bindgen may \
+               fail to locate target libc headers"
+            );
+          }
+        }
+      }
+    }
   } else if target_os == "ios" {
     // iOS: point bindgen at the iOS (device) or iOS-simulator SDK and set the
     // matching clang target triple so the V8 headers parse correctly.
