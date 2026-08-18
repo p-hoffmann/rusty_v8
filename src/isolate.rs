@@ -1196,39 +1196,18 @@ impl Isolate {
   /// Returns the maximum number of available embedder data slots. Valid slots
   /// are in the range of `0 <= n < Isolate::get_number_of_data_slots()`.
   pub fn get_number_of_data_slots(&self) -> u32 {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] get_number_of_data_slots: null isolate pointer");
-      return 0;
-    }
-    let n = unsafe { v8__Isolate__GetNumberOfDataSlots(ptr) };
+    let n = unsafe { v8__Isolate__GetNumberOfDataSlots(self.as_real_ptr()) };
     n - Self::INTERNAL_DATA_SLOT_COUNT
   }
 
   #[inline(always)]
   pub(crate) fn get_data_internal(&self, slot: u32) -> *mut c_void {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!(
-        "[RUSTY_V8 ERROR] get_data_internal: null isolate pointer, slot={}",
-        slot
-      );
-      return std::ptr::null_mut();
-    }
-    unsafe { v8__Isolate__GetData(ptr, slot) }
+    unsafe { v8__Isolate__GetData(self.as_real_ptr(), slot) }
   }
 
   #[inline(always)]
   pub(crate) fn set_data_internal(&mut self, slot: u32, data: *mut c_void) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!(
-        "[RUSTY_V8 ERROR] set_data_internal: null isolate pointer, slot={}",
-        slot
-      );
-      return;
-    }
-    unsafe { v8__Isolate__SetData(ptr, slot, data) }
+    unsafe { v8__Isolate__SetData(self.as_real_ptr(), slot, data) }
   }
 
   /// Get the value of the slot and replace it with a null pointer.
@@ -1308,13 +1287,8 @@ impl Isolate {
   /// constructed and exited when dropped.
   #[inline(always)]
   pub unsafe fn enter(&self) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] enter: null isolate pointer");
-      return;
-    }
     unsafe {
-      v8__Isolate__Enter(ptr);
+      v8__Isolate__Enter(self.as_real_ptr());
     }
   }
 
@@ -1328,13 +1302,8 @@ impl Isolate {
   /// constructed and exited when dropped.
   #[inline(always)]
   pub unsafe fn exit(&self) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] exit: null isolate pointer");
-      return;
-    }
     unsafe {
-      v8__Isolate__Exit(ptr);
+      v8__Isolate__Exit(self.as_real_ptr());
     }
   }
 
@@ -1344,13 +1313,8 @@ impl Isolate {
   /// the isolate is executing long running JavaScript code.
   #[inline(always)]
   pub fn memory_pressure_notification(&mut self, level: MemoryPressureLevel) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] memory_pressure_notification: null isolate pointer");
-      return;
-    }
     unsafe {
-      v8__Isolate__MemoryPressureNotification(ptr, level as u8)
+      v8__Isolate__MemoryPressureNotification(self.as_real_ptr(), level as u8)
     }
   }
 
@@ -1367,24 +1331,14 @@ impl Isolate {
   /// time which does not interrupt synchronous ECMAScript code execution.
   #[inline(always)]
   pub fn clear_kept_objects(&mut self) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] clear_kept_objects: null isolate pointer");
-      return;
-    }
-    unsafe { v8__Isolate__ClearKeptObjects(ptr) }
+    unsafe { v8__Isolate__ClearKeptObjects(self.as_real_ptr()) }
   }
 
   /// Optional notification that the system is running low on memory.
   /// V8 uses these notifications to attempt to free memory.
   #[inline(always)]
   pub fn low_memory_notification(&mut self) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] low_memory_notification: null isolate pointer");
-      return;
-    }
-    unsafe { v8__Isolate__LowMemoryNotification(ptr) }
+    unsafe { v8__Isolate__LowMemoryNotification(self.as_real_ptr()) }
   }
 
   /// Tells the VM whether the embedder is currently idle or not.
@@ -1433,15 +1387,9 @@ impl Isolate {
   /// Get statistics about the heap memory usage.
   #[inline(always)]
   pub fn get_heap_statistics(&mut self) -> HeapStatistics {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] get_heap_statistics: null isolate pointer");
-      // Return zeroed statistics
-      return HeapStatistics(unsafe { MaybeUninit::zeroed().assume_init() });
-    }
     let inner = unsafe {
       let mut s = MaybeUninit::zeroed();
-      v8__Isolate__GetHeapStatistics(ptr, s.as_mut_ptr());
+      v8__Isolate__GetHeapStatistics(self.as_real_ptr(), s.as_mut_ptr());
       s.assume_init()
     };
     HeapStatistics(inner)
@@ -1450,12 +1398,7 @@ impl Isolate {
   /// Returns the number of spaces in the heap.
   #[inline(always)]
   pub fn number_of_heap_spaces(&mut self) -> usize {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] number_of_heap_spaces: null isolate pointer");
-      return 0;
-    }
-    unsafe { v8__Isolate__NumberOfHeapSpaces(ptr) }
+    unsafe { v8__Isolate__NumberOfHeapSpaces(self.as_real_ptr()) }
   }
 
   /// Get the memory usage of a space in the heap.
@@ -1470,15 +1413,10 @@ impl Isolate {
     &mut self,
     index: usize,
   ) -> Option<HeapSpaceStatistics> {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] get_heap_space_statistics: null isolate pointer");
-      return None;
-    }
     let inner = unsafe {
       let mut s = MaybeUninit::zeroed();
       if !v8__Isolate__GetHeapSpaceStatistics(
-        ptr,
+        self.as_real_ptr(),
         s.as_mut_ptr(),
         index,
       ) {
@@ -1517,14 +1455,9 @@ impl Isolate {
     capture: bool,
     frame_limit: i32,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_capture_stack_trace_for_uncaught_exceptions: null isolate pointer");
-      return;
-    }
     unsafe {
       v8__Isolate__SetCaptureStackTraceForUncaughtExceptions(
-        ptr,
+        self.as_real_ptr(),
         capture,
         frame_limit,
       );
@@ -1539,12 +1472,7 @@ impl Isolate {
   /// The exception object will be passed to the callback.
   #[inline(always)]
   pub fn add_message_listener(&mut self, callback: MessageCallback) -> bool {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] add_message_listener: null isolate pointer");
-      return false;
-    }
-    unsafe { v8__Isolate__AddMessageListener(ptr, callback) }
+    unsafe { v8__Isolate__AddMessageListener(self.as_real_ptr(), callback) }
   }
 
   /// Adds a message listener for the specified message levels.
@@ -1554,14 +1482,9 @@ impl Isolate {
     callback: MessageCallback,
     message_levels: MessageErrorLevel,
   ) -> bool {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] add_message_listener_with_error_level: null isolate pointer");
-      return false;
-    }
     unsafe {
       v8__Isolate__AddMessageListenerWithErrorLevel(
-        ptr,
+        self.as_real_ptr(),
         callback,
         message_levels,
       )
@@ -1581,17 +1504,12 @@ impl Isolate {
     &mut self,
     callback: impl MapFnTo<PrepareStackTraceCallback<'s>>,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_prepare_stack_trace_callback: null isolate pointer");
-      return;
-    }
     // Note: the C++ API returns a MaybeLocal but V8 asserts at runtime when
     // it's empty. That is, you can't return None and that's why the Rust API
     // expects Local<Value> instead of Option<Local<Value>>.
     unsafe {
       v8__Isolate__SetPrepareStackTraceCallback(
-        ptr,
+        self.as_real_ptr(),
         callback.map_fn_to(),
       );
     };
@@ -1601,12 +1519,7 @@ impl Isolate {
   /// events.
   #[inline(always)]
   pub fn set_promise_hook(&mut self, hook: PromiseHook) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_promise_hook: null isolate pointer");
-      return;
-    }
-    unsafe { v8__Isolate__SetPromiseHook(ptr, hook) }
+    unsafe { v8__Isolate__SetPromiseHook(self.as_real_ptr(), hook) }
   }
 
   /// Set callback to notify about promise reject with no handler, or
@@ -1616,13 +1529,8 @@ impl Isolate {
     &mut self,
     callback: PromiseRejectCallback,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_promise_reject_callback: null isolate pointer");
-      return;
-    }
     unsafe {
-      v8__Isolate__SetPromiseRejectCallback(ptr, callback)
+      v8__Isolate__SetPromiseRejectCallback(self.as_real_ptr(), callback)
     }
   }
 
@@ -1631,14 +1539,9 @@ impl Isolate {
     &mut self,
     callback: WasmAsyncResolvePromiseCallback,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_wasm_async_resolve_promise_callback: null isolate pointer");
-      return;
-    }
     unsafe {
       v8__Isolate__SetWasmAsyncResolvePromiseCallback(
-        ptr,
+        self.as_real_ptr(),
         callback,
       )
     }
@@ -1649,14 +1552,9 @@ impl Isolate {
     &mut self,
     callback: AllowWasmCodeGenerationCallback,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_allow_wasm_code_generation_callback: null isolate pointer");
-      return;
-    }
     unsafe {
       v8__Isolate__SetAllowWasmCodeGenerationCallback(
-        ptr,
+        self.as_real_ptr(),
         callback,
       );
     }
@@ -1669,14 +1567,9 @@ impl Isolate {
     &mut self,
     callback: HostInitializeImportMetaObjectCallback,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_host_initialize_import_meta_object_callback: null isolate pointer");
-      return;
-    }
     unsafe {
       v8__Isolate__SetHostInitializeImportMetaObjectCallback(
-        ptr,
+        self.as_real_ptr(),
         callback,
       );
     }
@@ -1689,14 +1582,9 @@ impl Isolate {
     &mut self,
     callback: impl HostImportModuleDynamicallyCallback,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_host_import_module_dynamically_callback: null isolate pointer");
-      return;
-    }
     unsafe {
       v8__Isolate__SetHostImportModuleDynamicallyCallback(
-        ptr,
+        self.as_real_ptr(),
         callback.to_c_fn(),
       );
     }
@@ -1714,14 +1602,9 @@ impl Isolate {
     &mut self,
     callback: impl HostImportModuleWithPhaseDynamicallyCallback,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_host_import_module_with_phase_dynamically_callback: null isolate pointer");
-      return;
-    }
     unsafe {
       v8__Isolate__SetHostImportModuleWithPhaseDynamicallyCallback(
-        ptr,
+        self.as_real_ptr(),
         callback.to_c_fn(),
       );
     }
@@ -1760,22 +1643,17 @@ impl Isolate {
       rv
     }
 
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_host_create_shadow_realm_context_callback: null isolate pointer");
-      return;
-    }
     let slot_didnt_exist_before = self.set_slot(callback);
     if slot_didnt_exist_before {
       unsafe {
         #[cfg(target_os = "windows")]
         v8__Isolate__SetHostCreateShadowRealmContextCallback(
-          ptr,
+          self.as_real_ptr(),
           rust_shadow_realm_callback_windows,
         );
         #[cfg(not(target_os = "windows"))]
         v8__Isolate__SetHostCreateShadowRealmContextCallback(
-          ptr,
+          self.as_real_ptr(),
           rust_shadow_realm_callback,
         );
       }
@@ -1785,13 +1663,8 @@ impl Isolate {
   /// Sets a callback for counting the number of times a feature of V8 is used.
   #[inline(always)]
   pub fn set_use_counter_callback(&mut self, callback: UseCounterCallback) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_use_counter_callback: null isolate pointer");
-      return;
-    }
     unsafe {
-      v8__Isolate__SetUseCounterCallback(ptr, callback);
+      v8__Isolate__SetUseCounterCallback(self.as_real_ptr(), callback);
     }
   }
 
@@ -1810,14 +1683,9 @@ impl Isolate {
     data: *mut c_void,
     gc_type_filter: GCType,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] add_gc_prologue_callback: null isolate pointer");
-      return;
-    }
     unsafe {
       v8__Isolate__AddGCPrologueCallback(
-        ptr,
+        self.as_real_ptr(),
         callback,
         data,
         gc_type_filter,
@@ -1834,13 +1702,8 @@ impl Isolate {
     callback: GcCallbackWithData,
     data: *mut c_void,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] remove_gc_prologue_callback: null isolate pointer");
-      return;
-    }
     unsafe {
-      v8__Isolate__RemoveGCPrologueCallback(ptr, callback, data)
+      v8__Isolate__RemoveGCPrologueCallback(self.as_real_ptr(), callback, data)
     }
   }
 
@@ -1854,14 +1717,9 @@ impl Isolate {
     data: *mut c_void,
     gc_type_filter: GCType,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] add_gc_epilogue_callback: null isolate pointer");
-      return;
-    }
     unsafe {
       v8__Isolate__AddGCEpilogueCallback(
-        ptr,
+        self.as_real_ptr(),
         callback,
         data,
         gc_type_filter,
@@ -1878,13 +1736,8 @@ impl Isolate {
     callback: GcCallbackWithData,
     data: *mut c_void,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] remove_gc_epilogue_callback: null isolate pointer");
-      return;
-    }
     unsafe {
-      v8__Isolate__RemoveGCEpilogueCallback(ptr, callback, data)
+      v8__Isolate__RemoveGCEpilogueCallback(self.as_real_ptr(), callback, data)
     }
   }
 
@@ -1898,13 +1751,8 @@ impl Isolate {
     callback: NearHeapLimitCallback,
     data: *mut c_void,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] add_near_heap_limit_callback: null isolate pointer");
-      return;
-    }
     unsafe {
-      v8__Isolate__AddNearHeapLimitCallback(ptr, callback, data)
+      v8__Isolate__AddNearHeapLimitCallback(self.as_real_ptr(), callback, data)
     };
   }
 
@@ -1918,14 +1766,9 @@ impl Isolate {
     callback: NearHeapLimitCallback,
     heap_limit: usize,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] remove_near_heap_limit_callback: null isolate pointer");
-      return;
-    }
     unsafe {
       v8__Isolate__RemoveNearHeapLimitCallback(
-        ptr,
+        self.as_real_ptr(),
         callback,
         heap_limit,
       );
@@ -1944,14 +1787,9 @@ impl Isolate {
     &mut self,
     change_in_bytes: i64,
   ) -> i64 {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] adjust_amount_of_external_allocated_memory: null isolate pointer");
-      return 0;
-    }
     unsafe {
       v8__Isolate__AdjustAmountOfExternalAllocatedMemory(
-        ptr,
+        self.as_real_ptr(),
         change_in_bytes,
       )
     }
@@ -1959,44 +1797,24 @@ impl Isolate {
 
   #[inline(always)]
   pub fn get_cpp_heap(&mut self) -> Option<&Heap> {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] get_cpp_heap: null isolate pointer");
-      return None;
-    }
-    unsafe { v8__Isolate__GetCppHeap(ptr).as_ref() }
+    unsafe { v8__Isolate__GetCppHeap(self.as_real_ptr()).as_ref() }
   }
 
   #[inline(always)]
   pub fn set_oom_error_handler(&mut self, callback: OomErrorCallback) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_oom_error_handler: null isolate pointer");
-      return;
-    }
-    unsafe { v8__Isolate__SetOOMErrorHandler(ptr, callback) };
+    unsafe { v8__Isolate__SetOOMErrorHandler(self.as_real_ptr(), callback) };
   }
 
   /// Returns the policy controlling how Microtasks are invoked.
   #[inline(always)]
   pub fn get_microtasks_policy(&self) -> MicrotasksPolicy {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] get_microtasks_policy: null isolate pointer");
-      return MicrotasksPolicy::Explicit;
-    }
-    unsafe { v8__Isolate__GetMicrotasksPolicy(ptr) }
+    unsafe { v8__Isolate__GetMicrotasksPolicy(self.as_real_ptr()) }
   }
 
   /// Returns the policy controlling how Microtasks are invoked.
   #[inline(always)]
   pub fn set_microtasks_policy(&mut self, policy: MicrotasksPolicy) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_microtasks_policy: null isolate pointer");
-      return;
-    }
-    unsafe { v8__Isolate__SetMicrotasksPolicy(ptr, policy) }
+    unsafe { v8__Isolate__SetMicrotasksPolicy(self.as_real_ptr(), policy) }
   }
 
   /// Runs the default MicrotaskQueue until it gets empty and perform other
@@ -2005,23 +1823,13 @@ impl Isolate {
   /// callbacks are swallowed.
   #[inline(always)]
   pub fn perform_microtask_checkpoint(&mut self) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] perform_microtask_checkpoint: null isolate pointer");
-      return;
-    }
-    unsafe { v8__Isolate__PerformMicrotaskCheckpoint(ptr) }
+    unsafe { v8__Isolate__PerformMicrotaskCheckpoint(self.as_real_ptr()) }
   }
 
   /// Enqueues the callback to the default MicrotaskQueue
   #[inline(always)]
   pub fn enqueue_microtask(&mut self, microtask: Local<Function>) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] enqueue_microtask: null isolate pointer");
-      return;
-    }
-    unsafe { v8__Isolate__EnqueueMicrotask(ptr, &*microtask) }
+    unsafe { v8__Isolate__EnqueueMicrotask(self.as_real_ptr(), &*microtask) }
   }
 
   /// Set whether calling Atomics.wait (a function that may block) is allowed in
@@ -2029,12 +1837,7 @@ impl Isolate {
   /// CreateParams::allow_atomics_wait.
   #[inline(always)]
   pub fn set_allow_atomics_wait(&mut self, allow: bool) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_allow_atomics_wait: null isolate pointer");
-      return;
-    }
-    unsafe { v8__Isolate__SetAllowAtomicsWait(ptr, allow) }
+    unsafe { v8__Isolate__SetAllowAtomicsWait(self.as_real_ptr(), allow) }
   }
 
   /// Embedder injection point for `WebAssembly.compileStreaming(source)`.
@@ -2054,14 +1857,9 @@ impl Isolate {
         WasmStreaming<false>,
       ),
   {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] set_wasm_streaming_callback: null isolate pointer");
-      return;
-    }
     unsafe {
       v8__Isolate__SetWasmStreamingCallback(
-        ptr,
+        self.as_real_ptr(),
         trampoline::<F>(),
       )
     }
@@ -2080,14 +1878,9 @@ impl Isolate {
     &mut self,
     time_zone_detection: TimeZoneDetection,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] date_time_configuration_change_notification: null isolate pointer");
-      return;
-    }
     unsafe {
       v8__Isolate__DateTimeConfigurationChangeNotification(
-        ptr,
+        self.as_real_ptr(),
         time_zone_detection,
       );
     }
@@ -2098,12 +1891,7 @@ impl Isolate {
   /// compilation.
   #[inline(always)]
   pub fn has_pending_background_tasks(&self) -> bool {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] has_pending_background_tasks: null isolate pointer");
-      return false;
-    }
-    unsafe { v8__Isolate__HasPendingBackgroundTasks(ptr) }
+    unsafe { v8__Isolate__HasPendingBackgroundTasks(self.as_real_ptr()) }
   }
 
   /// Request garbage collection with a specific embedderstack state in this
@@ -2120,14 +1908,9 @@ impl Isolate {
     &mut self,
     r#type: GarbageCollectionType,
   ) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] request_garbage_collection_for_testing: null isolate pointer");
-      return;
-    }
     unsafe {
       v8__Isolate__RequestGarbageCollectionForTesting(
-        ptr,
+        self.as_real_ptr(),
         match r#type {
           GarbageCollectionType::Full => 0,
           GarbageCollectionType::Minor => 1,
@@ -2139,15 +1922,10 @@ impl Isolate {
   /// Disposes the isolate.  The isolate must not be entered by any
   /// thread to be disposable.
   unsafe fn dispose(&mut self) {
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] dispose: null isolate pointer");
-      return;
-    }
     // No test case in rusty_v8 show this, but there have been situations in
     // deno where dropping Annex before the states causes a segfault.
     unsafe {
-      v8__Isolate__Dispose(ptr);
+      v8__Isolate__Dispose(self.as_real_ptr());
     }
   }
 
@@ -2179,15 +1957,10 @@ impl Isolate {
       }
     }
 
-    let ptr = self.as_real_ptr();
-    if ptr.is_null() {
-      eprintln!("[RUSTY_V8 ERROR] take_heap_snapshot: null isolate pointer");
-      return;
-    }
     let arg = addr_of_mut!(callback);
     unsafe {
       v8__HeapProfiler__TakeHeapSnapshot(
-        ptr,
+        self.as_real_ptr(),
         trampoline::<F>,
         arg as _,
       );
